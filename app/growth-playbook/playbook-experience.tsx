@@ -251,16 +251,16 @@ export default function GrowthPlaybookExperience() {
             </div>
 
             <div style={cardStyle}>
-              <p className="eyebrow">Primary growth channel</p>
+              <p className="eyebrow">The Play</p>
               <p
                 style={{
                   margin: "10px 0 0",
                   fontSize: 24,
-                  lineHeight: 1.3,
+                  lineHeight: 1.45,
                   fontWeight: 700
                 }}
               >
-                {result.playbook.primaryGrowthChannel}
+                {result.playbook.thePlay}
               </p>
             </div>
 
@@ -294,14 +294,28 @@ export default function GrowthPlaybookExperience() {
             </div>
 
             <div style={{ ...cardStyle, gridColumn: "1 / -1" }}>
-              <p className="eyebrow">Top tactics</p>
+              <p className="eyebrow">Why It Worked</p>
+              <p style={{ margin: "14px 0 0", lineHeight: 1.8, color: "var(--muted)" }}>
+                {result.playbook.whyItWorked}
+              </p>
+            </div>
+
+            <div style={{ ...cardStyle, gridColumn: "1 / -1" }}>
+              <p className="eyebrow">The First Moves</p>
               <ol style={{ margin: "14px 0 0", paddingLeft: 20, lineHeight: 1.8 }}>
-                {result.playbook.topTactics.map((tactic, index) => (
+                {result.playbook.firstMoves.map((move, index) => (
                   <li key={index} style={{ marginBottom: 8 }}>
-                    {tactic}
+                    {move}
                   </li>
                 ))}
               </ol>
+            </div>
+
+            <div style={{ ...cardStyle, gridColumn: "1 / -1" }}>
+              <p className="eyebrow">The Growth Engine</p>
+              <p style={{ margin: "14px 0 0", lineHeight: 1.8, color: "var(--muted)" }}>
+                {result.playbook.growthEngine}
+              </p>
             </div>
 
             <div style={{ ...cardStyle, gridColumn: "1 / -1" }}>

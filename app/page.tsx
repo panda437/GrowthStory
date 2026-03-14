@@ -228,11 +228,11 @@ export default function HomePage() {
           <div style={featureCardStyle}>
             <p className="eyebrow">03</p>
             <h3 style={{ margin: "10px 0 8px", fontSize: 20 }}>
-              Keep a research trail
+              Build a reusable archive
             </h3>
             <p style={{ margin: 0, color: "var(--muted)", lineHeight: 1.7 }}>
-              Each generated playbook is stored in MongoDB so you can build a
-              reusable archive of startup growth intelligence.
+              Every generated playbook is saved so your team can revisit,
+              compare, and refine startup growth intelligence over time.
             </p>
           </div>
         </div>

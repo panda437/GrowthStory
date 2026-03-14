@@ -1,18 +1,28 @@
 import { z } from "zod";
 
 export const growthPlaybookSchema = z.object({
-  companyName: z.string(),
-  oneLiner: z.string().describe("What the company does in one sentence"),
-  primaryGrowthChannel: z
+  companyName: z.string().min(2),
+  oneLiner: z.string().min(12).describe("What the company does in one sentence"),
+  thePlay: z
     .string()
-    .describe("e.g., Programmatic SEO, Viral Loops, Cold Email"),
-  topTactics: z
-    .array(z.string())
+    .min(24)
+    .describe("The core growth strategy or play that best explains how the company grew"),
+  whyItWorked: z
+    .string()
+    .min(24)
+    .describe("The mechanism that made the growth play effective"),
+  firstMoves: z
+    .array(z.string().min(12))
     .min(3)
     .max(5)
-    .describe("3-5 highly specific, actionable steps they took to grow"),
+    .describe("3-5 highly specific, concrete actions they took first"),
+  growthEngine: z
+    .string()
+    .min(24)
+    .describe("How the strategy compounded into a repeatable growth engine"),
   evidenceLinks: z
-    .array(z.string())
+    .array(z.string().url())
+    .min(1)
     .describe("The URLs from the provided text that back up these claims")
 });
 
@@ -61,8 +71,10 @@ export type PlaybookArchiveItem = {
   startupName: string;
   companyName: string;
   oneLiner: string;
-  primaryGrowthChannel: string;
-  topTactics: string[];
+  thePlay: string;
+  whyItWorked: string;
+  firstMoves: string[];
+  growthEngine: string;
   evidenceLinks: string[];
   sourceCount: number;
   scorecard: PlaybookScorecard;

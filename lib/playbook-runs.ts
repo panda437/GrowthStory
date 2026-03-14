@@ -3,9 +3,10 @@ import type {
   ExaMention,
   GrowthPlaybook,
   PlaybookArchiveItem,
-  PlaybookScorecard,
   PlaybookVotes
 } from "../actions/playbook-schema";
+import type { PlaybookScorecard } from "../actions/playbook-schema";
+import { evaluatePlaybook } from "./playbook-evaluation";
 import { getMongoClient } from "./mongodb";
 
 type SaveGrowthPlaybookRunInput = {
@@ -15,12 +16,20 @@ type SaveGrowthPlaybookRunInput = {
   promptVersion: string;
 };
 
+type LegacyStoredPlaybook = Partial<GrowthPlaybook> & {
+  companyName?: string;
+  oneLiner?: string;
+  primaryGrowthChannel?: string;
+  topTactics?: string[];
+  evidenceLinks?: string[];
+};
+
 type StoredPlaybookDocument = {
   _id?: ObjectId;
   slug?: string;
   startupName: string;
   startupSlug?: string;
-  playbook: GrowthPlaybook;
+  playbook: LegacyStoredPlaybook;
   sourceCount: number;
   sources: Array<{
     title: string | null;
@@ -35,10 +44,6 @@ type StoredPlaybookDocument = {
   updatedAt?: Date;
 };
 
-function clampScore(value: number) {
-  return Math.max(1, Math.min(10, Math.round(value)));
-}
-
 export function slugifyBusiness(value: string) {
   return value
     .toLowerCase()
@@ -47,67 +52,38 @@ export function slugifyBusiness(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function getDomainCount(urls: string[]) {
-  const domains = urls.flatMap((url) => {
-    try {
-      return [new URL(url).hostname.replace(/^www\./, "")];
-    } catch {
-      return [];
-    }
-  });
-
-  return new Set(domains).size;
-}
-
-export function evaluatePlaybook(
-  playbook: GrowthPlaybook,
-  mentions: ExaMention[]
-): PlaybookScorecard {
-  const tacticLengths = playbook.topTactics.map((tactic) =>
-    tactic.trim().split(/\s+/).length
-  );
-  const averageTacticLength =
-    tacticLengths.reduce((sum, length) => sum + length, 0) /
-    Math.max(tacticLengths.length, 1);
-  const domainCount = getDomainCount(playbook.evidenceLinks);
-  const averageRelevance =
-    mentions.reduce((sum, mention) => sum + mention.relevanceScore, 0) /
-    Math.max(mentions.length, 1);
-
-  const depth = clampScore(
-    2 +
-      mentions.length * 0.55 +
-      Math.min(playbook.evidenceLinks.length, 5) * 0.35 +
-      domainCount * 0.35 +
-      averageTacticLength * 0.09
-  );
-
-  const quality = clampScore(
-    2 +
-      Math.min(playbook.evidenceLinks.length, playbook.topTactics.length) * 0.9 +
-      domainCount * 0.55 +
-      Math.min(averageRelevance, 12) * 0.22
-  );
-
-  const actionability = clampScore(
-    2 +
-      playbook.topTactics.length * 0.7 +
-      averageTacticLength * 0.16 +
-      playbook.topTactics.filter((tactic) =>
-        /\d|experiment|launch|build|use|run|measure|acquire|optimi/i.test(
-          tactic
-        )
-      ).length *
-        0.45
-  );
-
-  const overall = clampScore((depth + quality + actionability) / 3);
+function normalizeLegacyPlaybook(playbook: LegacyStoredPlaybook): GrowthPlaybook {
+  const legacyChannel =
+    typeof playbook.primaryGrowthChannel === "string"
+      ? playbook.primaryGrowthChannel
+      : "";
+  const legacyTactics = Array.isArray(playbook.topTactics)
+    ? playbook.topTactics.filter((value): value is string => typeof value === "string")
+    : [];
 
   return {
-    depth,
-    quality,
-    actionability,
-    overall
+    companyName:
+      typeof playbook.companyName === "string" ? playbook.companyName : "",
+    oneLiner: typeof playbook.oneLiner === "string" ? playbook.oneLiner : "",
+    thePlay:
+      typeof playbook.thePlay === "string" && playbook.thePlay.trim().length > 0
+        ? playbook.thePlay
+        : legacyChannel,
+    whyItWorked:
+      typeof playbook.whyItWorked === "string" && playbook.whyItWorked.trim().length > 0
+        ? playbook.whyItWorked
+        : "Independent evidence is limited, so this mechanism should be treated as a working hypothesis.",
+    firstMoves:
+      Array.isArray(playbook.firstMoves) && playbook.firstMoves.length > 0
+        ? playbook.firstMoves.filter((value): value is string => typeof value === "string")
+        : legacyTactics,
+    growthEngine:
+      typeof playbook.growthEngine === "string" && playbook.growthEngine.trim().length > 0
+        ? playbook.growthEngine
+        : "The archived result predates the newer structure, so the compounding engine was not captured explicitly.",
+    evidenceLinks: Array.isArray(playbook.evidenceLinks)
+      ? playbook.evidenceLinks.filter((value): value is string => typeof value === "string")
+      : []
   };
 }
 
@@ -132,21 +108,24 @@ function normalizeStoredPlaybook(document: StoredPlaybookDocument): PlaybookArch
     document.startupSlug ??
     slugifyBusiness(document.startupName);
   const votes = normalizeVotes(document.votes);
+  const normalizedPlaybook = normalizeLegacyPlaybook(document.playbook);
 
   return {
     id: document._id.toString(),
     slug,
     startupName: document.startupName,
-    companyName: document.playbook.companyName || document.startupName,
-    oneLiner: document.playbook.oneLiner,
-    primaryGrowthChannel: document.playbook.primaryGrowthChannel,
-    topTactics: document.playbook.topTactics,
-    evidenceLinks: document.playbook.evidenceLinks,
+    companyName: normalizedPlaybook.companyName || document.startupName,
+    oneLiner: normalizedPlaybook.oneLiner,
+    thePlay: normalizedPlaybook.thePlay,
+    whyItWorked: normalizedPlaybook.whyItWorked,
+    firstMoves: normalizedPlaybook.firstMoves,
+    growthEngine: normalizedPlaybook.growthEngine,
+    evidenceLinks: normalizedPlaybook.evidenceLinks,
     sourceCount: document.sourceCount,
     scorecard:
       document.scorecard ??
       evaluatePlaybook(
-        document.playbook,
+        normalizedPlaybook,
         document.sources.map((source) => ({
           title: source.title,
           url: source.url,
@@ -384,4 +363,9 @@ export async function voteForPlaybook(slug: string, direction: "up" | "down") {
       }
     }
   );
+}
+
+export async function deletePlaybookBySlug(slug: string) {
+  const collection = await getPlaybookCollection();
+  await collection.deleteOne({ slug });
 }

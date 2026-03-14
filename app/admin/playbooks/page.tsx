@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPlaybookArchive } from "../../../lib/playbook-runs";
+import DeleteButton from "./delete-button";
 import RefreshButton from "./refresh-button";
 
 export const metadata: Metadata = {
@@ -43,7 +44,8 @@ export default async function AdminPlaybooksPage({ searchParams }: PageProps) {
           <p style={{ margin: "16px 0 0", color: "var(--muted)", lineHeight: 1.8 }}>
             This view is intentionally hidden behind your admin secret. Use it to
             check which prompt version produced a playbook and refresh entries
-            that need a stronger result.
+            that need a stronger result. Delete removes the cached story entirely
+            so the next generation starts fresh.
           </p>
         </div>
       </section>
@@ -84,7 +86,10 @@ export default async function AdminPlaybooksPage({ searchParams }: PageProps) {
                 </p>
               </div>
 
-              <RefreshButton slug={playbook.slug} />
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <RefreshButton slug={playbook.slug} />
+                <DeleteButton slug={playbook.slug} />
+              </div>
             </div>
 
             <div

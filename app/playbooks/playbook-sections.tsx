@@ -121,16 +121,16 @@ export function PlaybookCard({
             padding: 18
           }}
         >
-          <p className="eyebrow">Primary growth channel</p>
+          <p className="eyebrow">The Play</p>
           <p
             style={{
               margin: "10px 0 0",
-              fontSize: 24,
-              lineHeight: 1.35,
+              fontSize: 22,
+              lineHeight: 1.5,
               fontWeight: 700
             }}
           >
-            {item.primaryGrowthChannel}
+            {item.thePlay}
           </p>
         </div>
 
@@ -157,14 +157,42 @@ export function PlaybookCard({
           padding: 18
         }}
       >
-        <p className="eyebrow">Top tactics</p>
+        <p className="eyebrow">Why It Worked</p>
+        <p style={{ margin: "12px 0 0", lineHeight: 1.8, color: "var(--muted)" }}>
+          {item.whyItWorked}
+        </p>
+      </div>
+
+      <div
+        style={{
+          borderRadius: 18,
+          border: "1px solid rgba(65, 53, 44, 0.12)",
+          background: "#fffdf9",
+          padding: 18
+        }}
+      >
+        <p className="eyebrow">The First Moves</p>
         <ol style={{ margin: "14px 0 0", paddingLeft: 22, lineHeight: 1.85 }}>
-          {item.topTactics.map((tactic, index) => (
+          {item.firstMoves.map((move, index) => (
             <li key={`${item.id}-${index}`} style={{ marginBottom: 8 }}>
-              {tactic}
+              {move}
             </li>
           ))}
         </ol>
+      </div>
+
+      <div
+        style={{
+          borderRadius: 18,
+          border: "1px solid rgba(65, 53, 44, 0.12)",
+          background: "#fffdf9",
+          padding: 18
+        }}
+      >
+        <p className="eyebrow">The Growth Engine</p>
+        <p style={{ margin: "12px 0 0", lineHeight: 1.8, color: "var(--muted)" }}>
+          {item.growthEngine}
+        </p>
       </div>
 
       {footer}
