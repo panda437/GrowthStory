@@ -173,18 +173,15 @@ export default function GrowthPlaybookExperience() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(0, 1.2fr) minmax(280px, 0.8fr)",
+              gridTemplateColumns: "minmax(0, 1fr)",
               gap: 16
             }}
           >
             <div style={{ ...cardStyle, gridColumn: "1 / -1" }}>
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  gap: 16,
-                  flexWrap: "wrap"
+                  display: "grid",
+                  gap: 14
                 }}
               >
                 <div>
@@ -210,43 +207,6 @@ export default function GrowthPlaybookExperience() {
                     {result.playbook.oneLiner}
                   </p>
                 </div>
-
-                <div
-                  style={{
-                    borderRadius: 16,
-                    padding: "12px 14px",
-                    background: "rgba(159, 91, 52, 0.08)",
-                    minWidth: 220
-                  }}
-                >
-                  <p className="eyebrow">Research snapshot</p>
-                  <p style={{ margin: "10px 0 0", fontWeight: 600 }}>
-                    {result.sourceCount} sources analysed
-                  </p>
-                  <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
-                    {result.fromCache
-                      ? "Loaded from MongoDB cache."
-                      : result.savedId
-                        ? "Saved to your MongoDB archive."
-                        : "Generated successfully."}
-                  </p>
-                  <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
-                    Prompt version: {result.promptVersion}
-                  </p>
-                  {result.savedSlug ? (
-                    <Link
-                      href={`/playbooks/${result.savedSlug}`}
-                      style={{
-                        display: "inline-block",
-                        marginTop: 10,
-                        color: "var(--accent)",
-                        fontWeight: 600
-                      }}
-                    >
-                      Open saved playbook
-                    </Link>
-                  ) : null}
-                </div>
               </div>
             </div>
 
@@ -262,26 +222,6 @@ export default function GrowthPlaybookExperience() {
               >
                 {result.playbook.thePlay}
               </p>
-            </div>
-
-            <div style={cardStyle}>
-              <p className="eyebrow">Evaluation</p>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                  gap: 10,
-                  marginTop: 12
-                }}
-              >
-                <ScoreStat label="Depth" value={result.scorecard.depth} />
-                <ScoreStat label="Quality" value={result.scorecard.quality} />
-                <ScoreStat
-                  label="Actionability"
-                  value={result.scorecard.actionability}
-                />
-                <ScoreStat label="Overall" value={result.scorecard.overall} />
-              </div>
             </div>
 
             <div style={cardStyle}>
@@ -351,24 +291,5 @@ export default function GrowthPlaybookExperience() {
         </section>
       ) : null}
     </main>
-  );
-}
-
-function ScoreStat({ label, value }: { label: string; value: number }) {
-  return (
-    <div
-      style={{
-        borderRadius: 14,
-        background: "rgba(159, 91, 52, 0.08)",
-        padding: "10px 12px"
-      }}
-    >
-      <p className="eyebrow" style={{ fontSize: 10 }}>
-        {label}
-      </p>
-      <p style={{ margin: "8px 0 0", fontSize: 24, fontWeight: 700 }}>
-        {value}/10
-      </p>
-    </div>
   );
 }

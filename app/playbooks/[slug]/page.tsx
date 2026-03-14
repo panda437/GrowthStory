@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPlaybookBySlug } from "../../../lib/playbook-runs";
-import { PlaybookCard, ScorePills } from "../playbook-sections";
+import { PlaybookCard } from "../playbook-sections";
 import VoteControls from "../vote-controls";
 
 export const dynamic = "force-dynamic";
@@ -92,14 +92,13 @@ export default async function PlaybookDetailPage({ params }: PageProps) {
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
+                justifyContent: "flex-start",
                 alignItems: "center",
                 gap: 16,
                 flexWrap: "wrap"
               }}
             >
               <VoteControls slug={playbook.slug} votes={playbook.votes} />
-              <ScorePills item={playbook} />
             </div>
           }
         />
@@ -127,64 +126,7 @@ export default async function PlaybookDetailPage({ params }: PageProps) {
             ))}
           </div>
         </div>
-
-        <div className="panel" style={{ padding: 22 }}>
-          <p className="eyebrow">How to judge this playbook</p>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 14,
-              marginTop: 14
-            }}
-          >
-            <RubricCard
-              title="Depth"
-              score={playbook.scorecard.depth}
-              body="Depth improves when the playbook pulls from multiple sources, cites specific tactics, and captures more than one growth lever."
-            />
-            <RubricCard
-              title="Quality"
-              score={playbook.scorecard.quality}
-              body="Quality improves when the claims are tightly grounded in source links, the domains are varied, and the strategy aligns with the evidence."
-            />
-            <RubricCard
-              title="Actionability"
-              score={playbook.scorecard.actionability}
-              body="Actionability improves when tactics are concrete enough to test, contain sequencing or measurement detail, and avoid generic advice."
-            />
-          </div>
-        </div>
       </section>
     </main>
-  );
-}
-
-function RubricCard({
-  title,
-  score,
-  body
-}: {
-  title: string;
-  score: number;
-  body: string;
-}) {
-  return (
-    <div
-      style={{
-        borderRadius: 18,
-        border: "1px solid rgba(65, 53, 44, 0.12)",
-        background: "#fffdf9",
-        padding: 18
-      }}
-    >
-      <p className="eyebrow">{title}</p>
-      <p style={{ margin: "10px 0 0", fontSize: 28, fontWeight: 700 }}>
-        {score}/10
-      </p>
-      <p style={{ margin: "12px 0 0", color: "var(--muted)", lineHeight: 1.75 }}>
-        {body}
-      </p>
-    </div>
   );
 }

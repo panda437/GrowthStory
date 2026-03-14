@@ -92,11 +92,8 @@ export function PlaybookCard({
             background: "rgba(159, 91, 52, 0.08)"
           }}
         >
-          <p className="eyebrow">Research snapshot</p>
+          <p className="eyebrow">Saved</p>
           <p style={{ margin: "10px 0 0", fontWeight: 700 }}>
-            Overall {item.scorecard.overall}/10
-          </p>
-          <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
             {new Date(item.createdAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -109,7 +106,7 @@ export function PlaybookCard({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.1fr) minmax(240px, 0.9fr)",
+          gridTemplateColumns: "minmax(0, 1fr)",
           gap: 16
         }}
       >
@@ -132,20 +129,6 @@ export function PlaybookCard({
           >
             {item.thePlay}
           </p>
-        </div>
-
-        <div
-          style={{
-            borderRadius: 18,
-            border: "1px solid rgba(65, 53, 44, 0.12)",
-            background: "#fffdf9",
-            padding: 18
-          }}
-        >
-          <p className="eyebrow">Evaluation</p>
-          <div style={{ marginTop: 12 }}>
-            <ScorePills item={item} />
-          </div>
         </div>
       </div>
 
