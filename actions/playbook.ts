@@ -7,49 +7,55 @@ import Exa from "exa-js";
 import { z } from "zod";
 import {
   growthPlaybookSchema,
-  type GrowthPlaybook,
   type ExaMention,
   type GenerateGrowthPlaybookResult,
+  type GrowthPlaybook
 } from "./playbook-schema";
-import { saveGrowthPlaybookRun, voteForPlaybook } from "../lib/playbook-runs";
+import {
+  getCachedPlaybookByStartupName,
+  getPlaybookBySlug,
+  saveGrowthPlaybookRun,
+  voteForPlaybook
+} from "../lib/playbook-runs";
 
 const startupNameSchema = z
   .string()
   .trim()
   .min(2, "Enter a startup name with at least 2 characters.");
 
-const MAX_RESULTS_TO_FETCH = 15; // cast a wide net
-const MAX_RESULTS_FOR_GPT = 10; // keep only the best
+const MAX_RESULTS_TO_FETCH = 15;
+const MAX_RESULTS_FOR_GPT = 10;
+const PLAYBOOK_PROMPT_VERSION = "2026-03-14-v1";
 
 function getExaClient() {
   const apiKey = process.env.EXA_API_KEY;
-  if (!apiKey) throw new Error("Missing EXA_API_KEY.");
+
+  if (!apiKey) {
+    throw new Error("Missing EXA_API_KEY.");
+  }
+
   return new Exa(apiKey);
 }
 
 function ensureOpenAIKey() {
-  if (!process.env.OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY.");
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("Missing OPENAI_API_KEY.");
+  }
 }
 
-/**
- * Score how relevant an article is to the target company.
- *
- * Formula:
- *   - +2 per mention of the company name in the title
- *   - +1 per mention of the company name in the body (capped at 20 so one
- *     repetitive article doesn't dominate)
- *   - +0–3 bonus for article length (more content = more signal)
- */
-function scoreRelevance(parsedNameLower: string, mention: Omit<ExaMention, "relevanceScore">): number {
+function scoreRelevance(
+  parsedNameLower: string,
+  mention: Omit<ExaMention, "relevanceScore">
+): number {
   const titleText = (mention.title ?? "").toLowerCase();
   const bodyText = mention.text.toLowerCase();
-
-  const titleHits = (titleText.match(new RegExp(parsedNameLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length;
-  const bodyHits = (bodyText.match(new RegExp(parsedNameLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) ?? []).length;
-
+  const escapedName = parsedNameLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const titleHits = (titleText.match(new RegExp(escapedName, "g")) ?? []).length;
+  const bodyHits = (bodyText.match(new RegExp(escapedName, "g")) ?? []).length;
   const titleScore = titleHits * 2;
   const bodyScore = Math.min(bodyHits, 20);
-  const lengthBonus = mention.text.length > 3000 ? 3 : mention.text.length > 1500 ? 2 : mention.text.length > 500 ? 1 : 0;
+  const lengthBonus =
+    mention.text.length > 3000 ? 3 : mention.text.length > 1500 ? 2 : mention.text.length > 500 ? 1 : 0;
 
   return titleScore + bodyScore + lengthBonus;
 }
@@ -67,31 +73,33 @@ export async function fetchStartupMentions(startupName: string): Promise<{
     {
       type: "keyword",
       numResults: MAX_RESULTS_TO_FETCH,
-      text: { maxCharacters: 5000 },
+      text: { maxCharacters: 5000 }
     }
   );
 
-  // Score every result, even ones with zero name mentions (so UI can show them as "dropped")
   const allMentions: ExaMention[] = response.results
     .filter(
-      (r) =>
-        typeof r.url === "string" &&
-        typeof r.text === "string" &&
-        r.text.trim().length > 0
+      (result) =>
+        typeof result.url === "string" &&
+        typeof result.text === "string" &&
+        result.text.trim().length > 0
     )
-    .map((r) => {
+    .map((result) => {
       const base = {
-        title: typeof r.title === "string" ? r.title : null,
-        url: r.url as string,
-        text: (r.text as string).trim(),
+        title: typeof result.title === "string" ? result.title : null,
+        url: result.url as string,
+        text: (result.text as string).trim()
       };
-      return { ...base, relevanceScore: scoreRelevance(nameLower, base) };
-    })
-    .sort((a, b) => b.relevanceScore - a.relevanceScore); // highest score first
 
-  // Keep only results that actually mention the company (score > 0) and cap at MAX_RESULTS_FOR_GPT
+      return {
+        ...base,
+        relevanceScore: scoreRelevance(nameLower, base)
+      };
+    })
+    .sort((a, b) => b.relevanceScore - a.relevanceScore);
+
   const keptMentions = allMentions
-    .filter((m) => m.relevanceScore > 0)
+    .filter((mention) => mention.relevanceScore > 0)
     .slice(0, MAX_RESULTS_FOR_GPT);
 
   if (keptMentions.length === 0) {
@@ -103,70 +111,96 @@ export async function fetchStartupMentions(startupName: string): Promise<{
   return { allMentions, keptMentions };
 }
 
-export async function generateGrowthPlaybook(
+async function buildGrowthPlaybook(
   startupName: string
 ): Promise<GenerateGrowthPlaybookResult> {
   ensureOpenAIKey();
 
   const parsedName = startupNameSchema.parse(startupName);
   const { keptMentions } = await fetchStartupMentions(parsedName);
-
-  const allowedLinks = new Set(keptMentions.map((m) => m.url));
+  const allowedLinks = new Set(keptMentions.map((mention) => mention.url));
   const combinedMentions = keptMentions
-    .map((m) => `Source: ${m.url}\n\nContent: ${m.text}`)
+    .map((mention) => `Source: ${mention.url}\n\nContent: ${mention.text}`)
     .join("\n\n---\n\n");
 
   const { object } = await generateObject({
     model: openai("gpt-5.2"),
     schema: growthPlaybookSchema,
     system:
-      "You are an expert growth marketer. Read the provided web excerpts and reverse-engineer the growth strategy for the specific startup named in the prompt. Be specific and actionable. Only describe strategies explicitly mentioned in the excerpts — do not hallucinate or assume. If the excerpts don't clearly describe the named company's strategy, say so in oneLiner.",
+      "You are an expert growth marketer. Read the provided web excerpts and reverse-engineer the growth strategy for the specific startup named in the prompt. Be specific and actionable. Only describe strategies explicitly mentioned in the excerpts. Do not hallucinate or assume. If the excerpts don't clearly describe the named company's strategy, say so in oneLiner.",
     prompt: [
       `Startup: ${parsedName}`,
       `You have been given ${keptMentions.length} high-relevance articles. Use ONLY these excerpts. Do not rely on prior knowledge.`,
       "Return evidenceLinks only from the Source URLs listed in the excerpts.",
-      combinedMentions,
-    ].join("\n\n"),
+      combinedMentions
+    ].join("\n\n")
   });
 
   const playbook: GrowthPlaybook = {
     ...object,
     companyName: object.companyName || parsedName,
-    evidenceLinks: object.evidenceLinks.filter((link) => allowedLinks.has(link)),
+    evidenceLinks: object.evidenceLinks.filter((link) => allowedLinks.has(link))
   };
 
-  let savedId: string | null = null;
-  let savedSlug: string | null = null;
-  const scorecard = {
-    depth: 0,
-    quality: 0,
-    actionability: 0,
-    overall: 0
-  };
-
-  try {
-    const savedRun = await saveGrowthPlaybookRun({
-      startupName: parsedName,
-      playbook,
-      mentions: keptMentions
-    });
-    savedId = savedRun.id;
-    savedSlug = savedRun.slug;
-    scorecard.depth = savedRun.scorecard.depth;
-    scorecard.quality = savedRun.scorecard.quality;
-    scorecard.actionability = savedRun.scorecard.actionability;
-    scorecard.overall = savedRun.scorecard.overall;
-  } catch (error) {
-    console.error("Failed to save growth playbook run", error);
-  }
+  const savedRun = await saveGrowthPlaybookRun({
+    startupName: parsedName,
+    playbook,
+    mentions: keptMentions,
+    promptVersion: PLAYBOOK_PROMPT_VERSION
+  });
 
   return {
     playbook,
     sourceCount: keptMentions.length,
-    savedId,
-    savedSlug,
-    scorecard
+    savedId: savedRun.id,
+    savedSlug: savedRun.slug,
+    scorecard: savedRun.scorecard,
+    fromCache: false,
+    promptVersion: PLAYBOOK_PROMPT_VERSION
   };
+}
+
+export async function generateGrowthPlaybook(
+  startupName: string
+): Promise<GenerateGrowthPlaybookResult> {
+  const parsedName = startupNameSchema.parse(startupName);
+  const cached = await getCachedPlaybookByStartupName(parsedName);
+
+  if (cached) {
+    return {
+      playbook: {
+        companyName: cached.companyName,
+        oneLiner: cached.oneLiner,
+        primaryGrowthChannel: cached.primaryGrowthChannel,
+        topTactics: cached.topTactics,
+        evidenceLinks: cached.evidenceLinks
+      },
+      sourceCount: cached.sourceCount,
+      savedId: cached.id,
+      savedSlug: cached.slug,
+      scorecard: cached.scorecard,
+      fromCache: true,
+      promptVersion: cached.promptVersion
+    };
+  }
+
+  return buildGrowthPlaybook(parsedName);
+}
+
+export async function refreshGrowthPlaybook(slug: string) {
+  const existing = await getPlaybookBySlug(slug);
+
+  if (!existing) {
+    throw new Error("Playbook not found.");
+  }
+
+  const refreshed = await buildGrowthPlaybook(existing.startupName);
+
+  revalidatePath("/playbooks");
+  revalidatePath(`/playbooks/${existing.slug}`);
+  revalidatePath("/growth-playbook");
+
+  return refreshed;
 }
 
 export async function votePlaybook(slug: string, direction: "up" | "down") {

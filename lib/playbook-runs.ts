@@ -12,6 +12,7 @@ type SaveGrowthPlaybookRunInput = {
   startupName: string;
   playbook: GrowthPlaybook;
   mentions: ExaMention[];
+  promptVersion: string;
 };
 
 type StoredPlaybookDocument = {
@@ -29,6 +30,7 @@ type StoredPlaybookDocument = {
   }>;
   scorecard?: PlaybookScorecard;
   votes?: PlaybookVotes;
+  promptVersion?: string;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -37,7 +39,7 @@ function clampScore(value: number) {
   return Math.max(1, Math.min(10, Math.round(value)));
 }
 
-function slugify(value: string) {
+export function slugifyBusiness(value: string) {
   return value
     .toLowerCase()
     .trim()
@@ -91,7 +93,11 @@ export function evaluatePlaybook(
     2 +
       playbook.topTactics.length * 0.7 +
       averageTacticLength * 0.16 +
-      playbook.topTactics.filter((tactic) => /\d|experiment|launch|build|use|run|measure|acquire|optimi/i.test(tactic)).length *
+      playbook.topTactics.filter((tactic) =>
+        /\d|experiment|launch|build|use|run|measure|acquire|optimi/i.test(
+          tactic
+        )
+      ).length *
         0.45
   );
 
@@ -123,9 +129,8 @@ function normalizeStoredPlaybook(document: StoredPlaybookDocument): PlaybookArch
 
   const slug =
     document.slug ??
-    `${document.startupSlug ?? slugify(document.startupName)}-${document._id
-      .toString()
-      .slice(-6)}`;
+    document.startupSlug ??
+    slugifyBusiness(document.startupName);
   const votes = normalizeVotes(document.votes);
 
   return {
@@ -150,8 +155,18 @@ function normalizeStoredPlaybook(document: StoredPlaybookDocument): PlaybookArch
         }))
       ),
     votes,
-    createdAt: (document.createdAt ?? new Date()).toISOString()
+    createdAt: (document.createdAt ?? new Date()).toISOString(),
+    updatedAt: (document.updatedAt ?? document.createdAt ?? new Date()).toISOString(),
+    promptVersion: document.promptVersion ?? "legacy"
   };
+}
+
+async function getPlaybookCollection() {
+  const client = await getMongoClient();
+
+  return client
+    .db("growthStory")
+    .collection<StoredPlaybookDocument>("growthPlaybooks");
 }
 
 async function ensureStoredSlug(
@@ -162,41 +177,115 @@ async function ensureStoredSlug(
     throw new Error("Stored playbook document is missing _id.");
   }
 
-  if (document.slug) {
-    return document.slug;
-  }
+  const nextSlug =
+    document.slug ??
+    document.startupSlug ??
+    slugifyBusiness(document.startupName);
 
-  const slug = `${document.startupSlug ?? slugify(document.startupName)}-${document._id
-    .toString()
-    .slice(-6)}`;
+  if (document.slug === nextSlug) {
+    return nextSlug;
+  }
 
   await collection.updateOne(
     { _id: document._id },
     {
       $set: {
-        slug,
+        slug: nextSlug,
         updatedAt: new Date()
       }
     }
   );
 
-  return slug;
+  return nextSlug;
+}
+
+async function findLatestByStartupSlug(
+  startupSlug: string,
+  collection: Collection<StoredPlaybookDocument>
+) {
+  const documents = await collection
+    .find({
+      $or: [{ startupSlug }, { slug: startupSlug }]
+    })
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .toArray();
+
+  return documents[0] ?? null;
+}
+
+async function dedupeLatestDocuments(collection: Collection<StoredPlaybookDocument>) {
+  const documents = await collection
+    .find({})
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .toArray();
+  const seen = new Set<string>();
+
+  return documents.filter((document) => {
+    const key =
+      document.startupSlug ??
+      document.slug ??
+      slugifyBusiness(document.startupName);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
 
 export async function saveGrowthPlaybookRun({
   startupName,
   playbook,
-  mentions
+  mentions,
+  promptVersion
 }: SaveGrowthPlaybookRunInput) {
-  const client = await getMongoClient();
-  const collection = client
-    .db("growthStory")
-    .collection<StoredPlaybookDocument>("growthPlaybooks");
+  const collection = await getPlaybookCollection();
   const now = new Date();
+  const startupSlug = slugifyBusiness(startupName);
   const scorecard = evaluatePlaybook(playbook, mentions);
+  const existing = await findLatestByStartupSlug(startupSlug, collection);
+
+  if (existing?._id) {
+    const nextSlug = existing.slug ?? startupSlug;
+
+    await collection.updateOne(
+      { _id: existing._id },
+      {
+        $set: {
+          startupName,
+          startupSlug,
+          slug: nextSlug,
+          playbook,
+          sourceCount: mentions.length,
+          sources: mentions.map((mention) => ({
+            title: mention.title,
+            url: mention.url,
+            relevanceScore: mention.relevanceScore,
+            excerpt: mention.text
+          })),
+          scorecard,
+          promptVersion,
+          updatedAt: now
+        },
+        $setOnInsert: {
+          createdAt: now
+        }
+      }
+    );
+
+    return {
+      id: existing._id.toString(),
+      slug: nextSlug,
+      scorecard
+    };
+  }
+
   const result = await collection.insertOne({
     startupName,
-    startupSlug: slugify(startupName),
+    startupSlug,
+    slug: startupSlug,
     playbook,
     sourceCount: mentions.length,
     sources: mentions.map((mention) => ({
@@ -211,35 +300,35 @@ export async function saveGrowthPlaybookRun({
       downvotes: 0,
       score: 0
     },
+    promptVersion,
     createdAt: now,
     updatedAt: now
   });
-  const insertedId = result.insertedId.toString();
-  const slug = `${slugify(startupName)}-${insertedId.slice(-6)}`;
-
-  await collection.updateOne(
-    { _id: result.insertedId },
-    {
-      $set: {
-        slug,
-        updatedAt: now
-      }
-    }
-  );
 
   return {
-    id: insertedId,
-    slug,
+    id: result.insertedId.toString(),
+    slug: startupSlug,
     scorecard
   };
 }
 
+export async function getCachedPlaybookByStartupName(startupName: string) {
+  const collection = await getPlaybookCollection();
+  const startupSlug = slugifyBusiness(startupName);
+  const document = await findLatestByStartupSlug(startupSlug, collection);
+
+  if (!document) {
+    return null;
+  }
+
+  document.slug = await ensureStoredSlug(collection, document);
+
+  return normalizeStoredPlaybook(document);
+}
+
 export async function getPlaybookArchive() {
-  const client = await getMongoClient();
-  const collection = client
-    .db("growthStory")
-    .collection<StoredPlaybookDocument>("growthPlaybooks");
-  const documents = await collection.find({}).toArray();
+  const collection = await getPlaybookCollection();
+  const documents = await dedupeLatestDocuments(collection);
 
   await Promise.all(
     documents.map(async (document) => {
@@ -258,26 +347,16 @@ export async function getPlaybookArchive() {
         return b.scorecard.overall - a.scorecard.overall;
       }
 
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
 }
 
 export async function getPlaybookBySlug(slug: string) {
-  const client = await getMongoClient();
-  const collection = client
-    .db("growthStory")
-    .collection<StoredPlaybookDocument>("growthPlaybooks");
+  const collection = await getPlaybookCollection();
   let document = await collection.findOne({ slug });
 
   if (!document) {
-    const documents = await collection.find({}).toArray();
-    document =
-      documents.find(
-        (candidate) =>
-          `${candidate.startupSlug ?? slugify(candidate.startupName)}-${candidate._id
-            .toString()
-            .slice(-6)}` === slug
-      ) ?? null;
+    document = await findLatestByStartupSlug(slug, collection);
   }
 
   if (!document) {
@@ -290,10 +369,7 @@ export async function getPlaybookBySlug(slug: string) {
 }
 
 export async function voteForPlaybook(slug: string, direction: "up" | "down") {
-  const client = await getMongoClient();
-  const collection = client
-    .db("growthStory")
-    .collection<StoredPlaybookDocument>("growthPlaybooks");
+  const collection = await getPlaybookCollection();
   const increment =
     direction === "up"
       ? { "votes.upvotes": 1, "votes.score": 1 }

@@ -51,6 +51,8 @@ export type GenerateGrowthPlaybookResult = {
   savedId: string | null;
   savedSlug: string | null;
   scorecard: PlaybookScorecard;
+  fromCache: boolean;
+  promptVersion: string;
 };
 
 export type PlaybookArchiveItem = {
@@ -66,4 +68,6 @@ export type PlaybookArchiveItem = {
   scorecard: PlaybookScorecard;
   votes: PlaybookVotes;
   createdAt: string;
+  updatedAt: string;
+  promptVersion: string;
 };

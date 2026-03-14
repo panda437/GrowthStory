@@ -15,6 +15,8 @@ type PlaybookResponse = {
   savedId: string | null;
   savedSlug: string | null;
   scorecard: PlaybookScorecard;
+  fromCache: boolean;
+  promptVersion: string;
 };
 
 const cardStyle = {
@@ -222,9 +224,14 @@ export default function GrowthPlaybookExperience() {
                     {result.sourceCount} sources analysed
                   </p>
                   <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
-                    {result.savedId
-                      ? "Saved to your MongoDB archive."
-                      : "Generated successfully."}
+                    {result.fromCache
+                      ? "Loaded from MongoDB cache."
+                      : result.savedId
+                        ? "Saved to your MongoDB archive."
+                        : "Generated successfully."}
+                  </p>
+                  <p style={{ margin: "8px 0 0", color: "var(--muted)" }}>
+                    Prompt version: {result.promptVersion}
                   </p>
                   {result.savedSlug ? (
                     <Link
