@@ -96,7 +96,7 @@ const SEARCH_PASSES = [
   {
     query:
       '"{startup}" news OR story OR How OR Why',
-    category: "generic" as const
+    category: undefined
   }
 ];
 
