@@ -96,7 +96,7 @@ const SEARCH_PASSES = [
   {
     query:
       '"{startup}" news OR story OR How OR Why',
-    category: undefined
+    category: "company" as const
   }
 ];
 
@@ -324,7 +324,7 @@ async function runRegularSearchPass(
   exa: Exa,
   startupName: string,
   queryTemplate: string,
-  category?: "news" | "personal site"
+  category?: "company" | "research paper" | "news" | "pdf" | "tweet" | "personal site" | "financial report" | "people"
 ) {
   const query = queryTemplate.replaceAll("{startup}", startupName);
 
