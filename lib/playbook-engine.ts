@@ -92,6 +92,11 @@ const SEARCH_PASSES = [
     query:
       '"{startup}" word of mouth OR viral OR community OR influencer OR marketplace growth',
     category: undefined
+  },
+  {
+    query:
+      '"{startup}" news OR story OR How OR Why',
+    category: "generic" as const
   }
 ];
 
@@ -193,26 +198,26 @@ function parseExaSummary(rawSummary: unknown): ExaSummary {
   const normalizedInput =
     typeof rawSummary === "string"
       ? (() => {
-          try {
-            return JSON.parse(rawSummary) as Record<string, unknown>;
-          } catch {
-            return { growthNotes: rawSummary };
-          }
-        })()
+        try {
+          return JSON.parse(rawSummary) as Record<string, unknown>;
+        } catch {
+          return { growthNotes: rawSummary };
+        }
+      })()
       : rawSummary;
   const normalizedObject =
     normalizedInput && typeof normalizedInput === "object"
       ? {
-          ...(normalizedInput as Record<string, unknown>),
-          evidenceStrength:
-            (normalizedInput as Record<string, unknown>).evidenceStrength === "strong"
-              ? "high"
-              : (normalizedInput as Record<string, unknown>).evidenceStrength === "moderate"
-                ? "medium"
-                : (normalizedInput as Record<string, unknown>).evidenceStrength === "weak"
-                  ? "low"
-                  : (normalizedInput as Record<string, unknown>).evidenceStrength
-        }
+        ...(normalizedInput as Record<string, unknown>),
+        evidenceStrength:
+          (normalizedInput as Record<string, unknown>).evidenceStrength === "strong"
+            ? "high"
+            : (normalizedInput as Record<string, unknown>).evidenceStrength === "moderate"
+              ? "medium"
+              : (normalizedInput as Record<string, unknown>).evidenceStrength === "weak"
+                ? "low"
+                : (normalizedInput as Record<string, unknown>).evidenceStrength
+      }
       : normalizedInput;
   const parsed = exaSummarySchema.safeParse(normalizedObject);
 
