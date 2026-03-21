@@ -70,14 +70,7 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "minmax(0, 1.5fr) minmax(280px, 0.9fr)",
-              gap: 24,
-              alignItems: "end"
-            }}
-          >
+          <div className="grid-hero">
             <div>
               <h1
                 style={{

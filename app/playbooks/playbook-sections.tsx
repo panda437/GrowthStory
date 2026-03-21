@@ -2,6 +2,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { PlaybookArchiveItem } from "../../actions/playbook-schema";
 
+function getDaysAgo(dateStr: string) {
+  const ms = Date.now() - new Date(dateStr).getTime();
+  return Math.floor(ms / (1000 * 60 * 60 * 24));
+}
+
 export function ScorePills({
   item
 }: {
@@ -86,20 +91,40 @@ export function PlaybookCard({
 
         <div
           style={{
-            minWidth: 220,
             borderRadius: 18,
             padding: "14px 16px",
-            background: "rgba(159, 91, 52, 0.08)"
+            background: "rgba(159, 91, 52, 0.08)",
+            flexShrink: 0
           }}
         >
-          <p className="eyebrow">Saved</p>
-          <p style={{ margin: "10px 0 0", fontWeight: 700 }}>
-            {new Date(item.createdAt).toLocaleDateString("en-US", {
+          <p className="eyebrow">Generated</p>
+          <p style={{ margin: "10px 0 4px", fontWeight: 700 }}>
+            {new Date(item.updatedAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric"
             })}
           </p>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
+            {getDaysAgo(item.updatedAt)} days ago
+          </p>
+          {getDaysAgo(item.updatedAt) > 60 && (
+            <span
+              style={{
+                display: "inline-block",
+                marginTop: 8,
+                borderRadius: 999,
+                padding: "4px 9px",
+                background: "rgba(200, 140, 40, 0.14)",
+                color: "#8a6000",
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.04em"
+              }}
+            >
+              May be outdated
+            </span>
+          )}
         </div>
       </div>
 

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getPlaybookArchive } from "../../lib/playbook-runs";
-import { PlaybookCard } from "./playbook-sections";
-import VoteControls from "./vote-controls";
+import ArchiveSearch from "./archive-search";
 
 export const metadata: Metadata = {
   title: "Growth Playbook Archive",
@@ -20,12 +19,12 @@ export default async function PlaybooksArchivePage() {
       <section className="shell">
         <div className="panel" style={{ padding: "28px 28px 32px" }}>
           <div
+            className="stack-mobile"
             style={{
-              display: "flex",
               justifyContent: "space-between",
               gap: 16,
-              flexWrap: "wrap",
-              alignItems: "center"
+              alignItems: "center",
+              marginBottom: 18
             }}
           >
             <div>
@@ -71,7 +70,7 @@ export default async function PlaybooksArchivePage() {
 
           <p
             style={{
-              margin: "18px 0 0",
+              margin: "0",
               color: "var(--muted)",
               lineHeight: 1.8,
               fontSize: 16,
@@ -86,7 +85,7 @@ export default async function PlaybooksArchivePage() {
         </div>
       </section>
 
-      <section className="shell" style={{ marginTop: 22, display: "grid", gap: 18 }}>
+      <section className="shell" style={{ marginTop: 22 }}>
         {playbooks.length === 0 ? (
           <div className="panel" style={{ padding: 24 }}>
             <p className="eyebrow">No playbooks yet</p>
@@ -95,34 +94,7 @@ export default async function PlaybooksArchivePage() {
             </p>
           </div>
         ) : (
-          playbooks.map((item) => (
-            <PlaybookCard
-              key={item.id}
-              item={item}
-              footer={
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 16,
-                    alignItems: "center",
-                    flexWrap: "wrap"
-                  }}
-                >
-                  <VoteControls slug={item.slug} votes={item.votes} />
-                  <Link
-                    href={`/playbooks/${item.slug}`}
-                    style={{
-                      color: "var(--accent)",
-                      fontWeight: 700
-                    }}
-                  >
-                    Read full playbook
-                  </Link>
-                </div>
-              }
-            />
-          ))
+          <ArchiveSearch playbooks={playbooks} />
         )}
       </section>
     </main>

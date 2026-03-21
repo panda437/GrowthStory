@@ -46,6 +46,7 @@ export default function RootLayout({
           href="https://exa.ai"
           target="_blank"
           rel="noopener noreferrer"
+          className="exa-badge"
           style={{
             position: "fixed",
             top: 16,

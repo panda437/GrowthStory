@@ -369,3 +369,47 @@ export async function deletePlaybookBySlug(slug: string) {
   const collection = await getPlaybookCollection();
   await collection.deleteOne({ slug });
 }
+
+export async function getRelatedPlaybooks(
+  currentSlug: string,
+  limit = 3
+): Promise<PlaybookArchiveItem[]> {
+  const collection = await getPlaybookCollection();
+  const documents = await dedupeLatestDocuments(collection);
+
+  await Promise.all(
+    documents.map(async (document) => {
+      document.slug = await ensureStoredSlug(collection, document);
+    })
+  );
+
+  const all = documents.map(normalizeStoredPlaybook);
+  const current = all.find((item) => item.slug === currentSlug);
+
+  if (!current) return [];
+
+  // Build a keyword set from the current playbook's key fields
+  const currentWords = new Set(
+    `${current.thePlay} ${current.growthEngine}`
+      .toLowerCase()
+      .split(/\W+/)
+      .filter((word) => word.length > 4)
+  );
+
+  const scored = all
+    .filter((item) => item.slug !== currentSlug)
+    .map((item) => {
+      const itemWords = `${item.thePlay} ${item.growthEngine}`
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((word) => word.length > 4);
+      const overlap = itemWords.filter((word) => currentWords.has(word)).length;
+      return { item, overlap };
+    })
+    .filter(({ overlap }) => overlap > 0)
+    .sort((a, b) => b.overlap - a.overlap)
+    .slice(0, limit)
+    .map(({ item }) => item);
+
+  return scored;
+}

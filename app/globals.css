@@ -49,6 +49,51 @@ pre {
   margin: 0 auto;
 }
 
+.stack-mobile {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.grid-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+  gap: 24px;
+  align-items: end;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .shell {
+    width: calc(100% - 24px);
+  }
+
+  .grid-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row button {
+    width: 100%;
+    padding: 14px 20px;
+  }
+
+  .exa-badge {
+    top: auto;
+    bottom: 16px;
+    right: 12px;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+}
+
 .eyebrow {
   margin: 0;
   font-size: 12px;

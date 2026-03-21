@@ -122,13 +122,7 @@ export default function GrowthPlaybookExperience() {
               Startup name
             </label>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr) auto",
-                gap: 12
-              }}
-            >
+            <div className="form-row">
               <input
                 id="startup-name"
                 value={startupName}

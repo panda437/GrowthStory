@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPlaybookBySlug } from "../../../lib/playbook-runs";
+import { getPlaybookBySlug, getRelatedPlaybooks } from "../../../lib/playbook-runs";
+import { refreshGrowthPlaybook } from "../../../actions/playbook";
 import { PlaybookCard } from "../playbook-sections";
 import VoteControls from "../vote-controls";
+import RefreshButton from "./refresh-button";
 
 export const dynamic = "force-dynamic";
 
@@ -20,20 +22,38 @@ export async function generateMetadata({
   const playbook = await getPlaybookBySlug(slug);
 
   if (!playbook) {
-    return {
-      title: "Playbook not found"
-    };
+    return { title: "Playbook not found" };
   }
 
+  const title = `${playbook.companyName} Growth Playbook`;
+  const description = `${playbook.thePlay} — ${playbook.oneLiner}`;
+  const url = `https://growthstory.dev/playbooks/${slug}`;
+
   return {
-    title: `${playbook.companyName} Growth Playbook`,
-    description: playbook.oneLiner
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      url,
+      siteName: "GrowthStory"
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description
+    }
   };
 }
 
 export default async function PlaybookDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const playbook = await getPlaybookBySlug(slug);
+  const [playbook, related] = await Promise.all([
+    getPlaybookBySlug(slug),
+    getRelatedPlaybooks(slug)
+  ]);
 
   if (!playbook) {
     notFound();
@@ -43,11 +63,10 @@ export default async function PlaybookDetailPage({ params }: PageProps) {
     <main style={{ padding: "28px 0 56px" }}>
       <section className="shell">
         <div
+          className="stack-mobile"
           style={{
-            display: "flex",
             justifyContent: "space-between",
             gap: 16,
-            flexWrap: "wrap",
             alignItems: "center",
             marginBottom: 18
           }}
@@ -59,16 +78,14 @@ export default async function PlaybookDetailPage({ params }: PageProps) {
             </p>
           </div>
 
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
             <Link
               href="/playbooks"
-              style={{
-                color: "var(--accent)",
-                fontWeight: 700
-              }}
+              style={{ color: "var(--accent)", fontWeight: 700 }}
             >
               Back to archive
             </Link>
+            <RefreshButton slug={slug} refreshAction={refreshGrowthPlaybook} />
             <Link
               href="/growth-playbook"
               style={{
@@ -118,7 +135,8 @@ export default async function PlaybookDetailPage({ params }: PageProps) {
                   padding: "12px 14px",
                   color: "var(--accent)",
                   wordBreak: "break-all",
-                  background: "#fffdf9"
+                  background: "#fffdf9",
+                  display: "block"
                 }}
               >
                 {link}
@@ -126,6 +144,58 @@ export default async function PlaybookDetailPage({ params }: PageProps) {
             ))}
           </div>
         </div>
+
+        {related.length > 0 && (
+          <div className="panel" style={{ padding: 22 }}>
+            <p className="eyebrow">Related Playbooks</p>
+            <p style={{ margin: "8px 0 18px", color: "var(--muted)", fontSize: 14 }}>
+              Startups with similar growth patterns
+            </p>
+            <div style={{ display: "grid", gap: 12 }}>
+              {related.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/playbooks/${item.slug}`}
+                  style={{
+                    borderRadius: 16,
+                    border: "1px solid rgba(65, 53, 44, 0.12)",
+                    background: "#fffdf9",
+                    padding: "16px 18px",
+                    display: "grid",
+                    gap: 6
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 12,
+                      flexWrap: "wrap"
+                    }}
+                  >
+                    <strong style={{ fontSize: 17 }}>{item.companyName}</strong>
+                    <span
+                      style={{
+                        borderRadius: 999,
+                        padding: "4px 10px",
+                        background: "rgba(159, 91, 52, 0.08)",
+                        color: "var(--accent)",
+                        fontSize: 12,
+                        fontWeight: 700
+                      }}
+                    >
+                      {item.scorecard.overall}/10
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, color: "var(--muted)", fontSize: 14, lineHeight: 1.6 }}>
+                    {item.thePlay}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );
